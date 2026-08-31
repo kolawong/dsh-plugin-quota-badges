@@ -34,10 +34,24 @@
     "deepseek-harness",
     "cordis",
     "opencode",
+    "minimax",
+    "kimi",
+    "deepseek",
     "quota",
     "usage",
-    "rate-limit"
+    "rate-limit",
+    "subscription",
+    "badges"
   ],
+  "author": "kola",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kolawong/dsh-plugin-quota-badges.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kolawong/dsh-plugin-quota-badges/issues"
+  },
+  "homepage": "https://github.com/kolawong/dsh-plugin-quota-badges#readme",
   "license": "MIT",
   "files": [
     "index.js",
@@ -46,6 +60,7 @@
     "client.js",
     "index.d.ts",
     "cordis.patch.yml",
+    "providers/",
     "README.md",
     "README_CN.md",
     "scripts/",
@@ -56,6 +71,6 @@
     "@deepseek-ai/schemastery": ">=3.0.0"
   },
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/*.test.js"
   }
 }

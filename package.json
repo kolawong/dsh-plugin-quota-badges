@@ -1,0 +1,61 @@
+{
+  "name": "dsh-plugin-quota-badges",
+  "version": "0.10.0",
+  "description": "DeepSeek Harness bundle: multi-vendor subscription quota badge (OpenCode Zen Go, MiniMax, Kimi Code, DeepSeek) — queries each vendor's usage windows/balance and renders badges next to the composer model selector.",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-model-selection",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "opencode",
+    "quota",
+    "usage",
+    "rate-limit"
+  ],
+  "license": "MIT",
+  "files": [
+    "index.js",
+    "usage-core.js",
+    "models-core.js",
+    "client.js",
+    "index.d.ts",
+    "cordis.patch.yml",
+    "README.md",
+    "README_CN.md",
+    "scripts/",
+    "tests/"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/schemastery": ">=3.0.0"
+  },
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

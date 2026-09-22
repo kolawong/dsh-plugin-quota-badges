@@ -785,6 +785,47 @@ window.__ModuleLoader__.load({
       });
     }
 
+    function WarningIcon(props) {
+      const { size = 12, style } = props || {};
+      return jsx("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": true,
+        style: { display: "inline-block", verticalAlign: "middle", ...style },
+        children: [
+          jsx("path", { d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" }),
+          jsx("line", { x1: "12", y1: "9", x2: "12", y2: "13" }),
+          jsx("line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }),
+        ],
+      });
+    }
+
+    function CloseIcon(props) {
+      const { size = 12, style } = props || {};
+      return jsx("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": true,
+        style: { display: "inline-block", verticalAlign: "middle", ...style },
+        children: [
+          jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+          jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" }),
+        ],
+      });
+    }
+
     /**
      * The quota badge + detail popover. Receives the slot standard kit; only
      * `t` is used. Owner props (session/input) are irrelevant — quota data is
@@ -975,7 +1016,7 @@ window.__ModuleLoader__.load({
         extraClass = "ocq-muted";
       } else if (!aggregated) {
         // Upstream failed before any success: minimal glyph, details on hover.
-        chipBody = jsx("span", { "aria-label": t("errorPrefix"), children: "⚠" });
+        chipBody = jsx("span", { "aria-label": t("errorPrefix"), style: { display: "inline-flex", alignItems: "center" }, children: jsx(WarningIcon, { size: 12 }) });
         extraClass = "ocq-warn";
       } else if (windows.length > 0) {
         const worst = windows.reduce(
@@ -1112,7 +1153,7 @@ window.__ModuleLoader__.load({
                   className: "ocq-pop-close",
                   title: t("closeBtn"),
                   onClick: togglePopover,
-                  children: "✕",
+                  children: jsx(CloseIcon, { size: 12 }),
                 }),
               ],
             }),
@@ -1132,7 +1173,14 @@ window.__ModuleLoader__.load({
               children: updatedLine(payload, t),
             }),
             shownError !== null && shownError.code !== "unconfigured"
-              ? jsx("div", { className: "ocq-pop-error", children: `⚠ ${t("stale")} — ${shownError.message}` })
+              ? jsxs("div", {
+                  className: "ocq-pop-error",
+                  style: { display: "flex", alignItems: "center", gap: "5px" },
+                  children: [
+                    jsx(WarningIcon, { size: 12 }),
+                    jsx("span", { children: `${t("stale")} — ${shownError.message}` }),
+                  ],
+                })
               : null,
             jsxs("div", {
               className: "ocq-pop-foot",

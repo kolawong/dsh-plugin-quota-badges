@@ -61,23 +61,36 @@ const MONTHLY_KEYS = ["monthlyUsage", "monthly", "monthly_usage", "monthlyWindow
 
 /**
  * Read one window object into { percent, resetInSec }, or null when no usable
- * percent can be derived. Percent fields arriving as fractions (0..1) scale to
- * 0..100; a computed used/limit percent is already 0..100 and must not rescale
- * (the direct-field flag mirrors the Swift heuristic).
+ * percent can be derived. Direct percent fields strictly inside 0..1 scale to
+ * 0..100 (exactly 1 stays "1% used" — the live API sends integer percents);
+ * a direct value above 100 is a raw usage count, not a percentage, and is
+ * re-derived from the used/limit pair or drops the window. A computed
+ * used/limit percent is already 0..100 and never rescales.
  * @param {Record<string, unknown>} dict - one window object from the payload.
  * @param {number} now - epoch ms used to turn absolute reset timestamps into relative seconds.
  * @returns {{ percent: number, resetInSec: number } | null}
  */
 export function parseWindow(dict, now) {
   let percent;
+  let percentIsDirect = false;
   for (const key of PERCENT_KEYS) {
     const value = doubleValue(dict[key]);
     if (value !== undefined) {
       percent = value;
+      percentIsDirect = true;
       break;
     }
   }
-  const percentIsDirect = percent !== undefined;
+
+  // A direct "percent" above 100 is a raw usage count that landed under a
+  // percent-ish key (e.g. `usage: 4250` tokens): clamping it to the ceiling
+  // would present a healthy window as "0% remaining". Discard the value and
+  // re-derive from the used/limit pair when one exists; drop the window
+  // otherwise — an absent bar beats a false empty one.
+  if (percentIsDirect && percent > 100) {
+    percent = undefined;
+    percentIsDirect = false;
+  }
 
   if (percent === undefined) {
     const used = firstNumber(dict, ["used", "usage", "consumed", "count", "usedTokens"]);
@@ -88,7 +101,13 @@ export function parseWindow(dict, now) {
   }
 
   if (percent === undefined || !Number.isFinite(percent)) return null;
-  let resolved = percentIsDirect && percent >= 0 && percent <= 1 ? percent * 100 : percent;
+  // Legacy payloads may express a direct percent as a 0..1 fraction, but the
+  // live endpoint sends integer percents (observed: percent 4 / 17 / 1), so
+  // the scale-up applies only strictly inside 0..1: exactly 1 stays "1% used".
+  // Reading it as the fraction 1.0 flipped a 1%-used monthly window into
+  // "0% remaining" the moment usage crossed the 1% mark. The computed
+  // used/limit path is already 0..100 and never rescales.
+  let resolved = percentIsDirect && percent > 0 && percent < 1 ? percent * 100 : percent;
   resolved = Math.max(0, Math.min(100, resolved));
 
   let resetInSec;

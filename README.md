@@ -7,7 +7,7 @@ English | [简体中文](README_CN.md)
 [![Multi-Vendor Quota](https://img.shields.io/badge/Vendors-OpenCode%20|%20MiniMax%20|%20Kimi%20|%20DeepSeek-brightgreen.svg)]()
 [![Platform: Web](https://img.shields.io/badge/Platform-Web-orange.svg)]()
 
-A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin providing real-time multi-vendor subscription quota and balance monitoring. Displays compact quota bars directly in the composer bar next to the model selector, with automated model catalog synchronization and a full Web settings interface.
+A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin providing real-time multi-vendor subscription quota and balance monitoring. Displays compact quota bars directly in the composer bar next to the model selector, with a full Web settings interface.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -35,12 +35,12 @@ A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plu
   - When enabled (default), the badge automatically appears when the active session model belongs to a configured vendor (e.g. OpenCode, MiniMax, Kimi, DeepSeek) and hides when switched to other providers.
 - **🔍 Rich Popover Details & Instant Refresh**
   - Click on the badge to expand a detailed popover displaying per-vendor progress bars, exact reset timestamps, subscription renewal dates, and an instant **"Refresh Now"** button.
-- **🔄 Live Model Catalog Synchronization (OpenCode)**
-  - Automatically queries the live OpenCode `/models` endpoint, merges newly released models with DSH's local catalog, and updates `llm-pi-ai` settings so new models become selectable immediately.
 - **🛡️ Secure Server-Side Proxy (CORS Bypass & Key Safety)**
   - Background polling worker (default 60s) avoids browser CORS preflight restrictions, caches snapshots across multiple open browser tabs, and never exposes API keys to client-side network inspectors.
 - **⚙️ Native Web Settings Card**
   - Integrates into **Settings → Plugins → Quota Badges**, providing a clean card to configure API Keys, polling intervals, timeouts, and manage enabled providers.
+
+> Model capabilities (OpenCode live model-list sync, capacity/modality enrichment, forced vision / text-only) moved to the `modelCapability` optimization in **dsh-plugin-toolkit**; this plugin no longer ships it.
 
 ---
 
@@ -58,7 +58,6 @@ A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plu
 │                    DSH Server Plugin Layer                  │
 │  - Background Poller (Configurable Interval, Default 60s)   │
 │  - Provider Adapters (OpenCode / MiniMax / Kimi / DeepSeek) │
-│  - OpenCode /models Live Fetcher & pi-ai Settings Sync      │
 └──────────────────────────────▲──────────────────────────────┘
                                │ Upstream HTTPS
 ┌──────────────────────────────┴──────────────────────────────┐
@@ -124,9 +123,6 @@ All configurations can be managed visually directly within the Web interface:
 2. **Provider Integration (`厂商接入`)**:
    - Click `+ Add Provider` to configure API Keys for **OpenCode**, **MiniMax**, **Kimi Code**, or **DeepSeek**.
    - Custom API Base URLs (e.g. OpenCode Global vs. CN endpoint).
-3. **Model Capabilities (OpenCode)**:
-   - Auto-sync `/models` list toggle.
-   - Force vision modal overrides.
 
 ### Overriding via `cordis.patch.yml` (Optional)
 
@@ -158,7 +154,6 @@ The plugin registers same-origin HTTP routes through DSH's internal Web server:
 |---|---|---|
 | `GET` | `/api/quota-badges/status` | Returns the latest cached snapshot for all configured vendors. |
 | `POST` | `/api/quota-badges/refresh` | Triggers an immediate upstream polling cycle across all vendors. |
-| `GET` | `/api/quota-badges/models` | Returns the current OpenCode live model catalog and sync status. |
 
 #### Example `/api/quota-badges/status` Response:
 
@@ -194,7 +189,7 @@ The plugin registers same-origin HTTP routes through DSH's internal Web server:
 
 ## 🛠️ Development & Unit Tests
 
-The codebase is written in modern ES Modules with 80+ unit and integration tests covering vendor parsing, fallback heuristics, and model catalog merging.
+The codebase is written in modern ES Modules with 50+ unit and integration tests covering vendor parsing and fallback heuristics.
 
 ```sh
 # Run all unit tests

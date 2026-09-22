@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-quota-badges",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "DeepSeek Harness bundle: multi-vendor subscription quota badge (OpenCode Zen Go, MiniMax, Kimi Code, DeepSeek) — queries each vendor's usage windows/balance and renders badges next to the composer model selector.",
   "type": "module",
   "main": "index.js",
@@ -56,7 +56,6 @@
   "files": [
     "index.js",
     "usage-core.js",
-    "models-core.js",
     "client.js",
     "index.d.ts",
     "cordis.patch.yml",

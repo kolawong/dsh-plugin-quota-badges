@@ -87,12 +87,12 @@ function makeMockCtx() {
 
 test("module surface: name, inject, Config, apply", () => {
   assert.equal(name, "quota-badges");
-  assert.deepEqual(inject, ["webServer", "settings", "llm"]);
+  assert.deepEqual(inject, ["webServer", "settings"]);
   assert.equal(typeof apply, "function");
   assert.equal(typeof Config, "function");
   const parsed = Config({});
   assert.ok(parsed.providers !== undefined);
-  assert.ok(Array.isArray(parsed.modelsVision));
+  assert.equal(parsed.modelsVision, undefined, "model-sync config moved to dsh-plugin-toolkit");
 });
 
 test("apply registers the settings namespace quota-badges", () => {
@@ -104,18 +104,17 @@ test("apply registers the settings namespace quota-badges", () => {
   assert.equal(quota.base.apiKey, "");
 });
 
-test("apply mounts the three routes", () => {
+test("apply mounts the two quota routes", () => {
   const mock = makeMockCtx();
   apply(mock.ctx, {
     statusPath: "/api/quota-badges/status",
     refreshPath: "/api/quota-badges/refresh",
-    syncModelsPath: "/api/quota-badges/sync-models",
   });
   const paths = mock.routes.map((r) => r.path);
   assert.ok(paths.includes("/api/quota-badges/status"));
   assert.ok(paths.includes("/api/quota-badges/refresh"));
-  assert.ok(paths.includes("/api/quota-badges/sync-models"));
-  // All three are exact-kind (no prefix ambiguity).
+  assert.equal(paths.length, 2, "the model-sync route moved to dsh-plugin-toolkit");
+  // Both are exact-kind (no prefix ambiguity).
   assert.ok(mock.routes.every((r) => r.kind === "exact"));
 });
 
@@ -127,20 +126,20 @@ test("apply installs the opencode provider (startup behavior)", () => {
   assert.equal(typeof poller.disposer, "function");
 });
 
-test("opencode adapter contract: id, displayName, config, fetchUsage, syncModels, install", () => {
+test("opencode adapter contract: id, displayName, config, fetchUsage", () => {
   assert.equal(opencodeProvider.id, "opencode");
   assert.equal(typeof opencodeProvider.displayName, "string");
   assert.equal(typeof opencodeProvider.config, "function");
   assert.equal(typeof opencodeProvider.fetchUsage, "function");
-  assert.equal(typeof opencodeProvider.syncModels, "function");
-  assert.equal(typeof opencodeProvider.install, "function");
+  assert.equal(opencodeProvider.syncModels, undefined, "model sync moved to dsh-plugin-toolkit");
+  assert.equal(opencodeProvider.install, undefined, "startup healing moved to dsh-plugin-toolkit");
 });
 
 test("opencode adapter config(): flat compatibility + nested override", () => {
   const flat = opencodeProvider.config({ apiKey: "flat-key", timeoutSec: 7 });
   assert.equal(flat.apiKey, "flat-key");
   assert.equal(flat.timeoutSec, 7);
-  assert.equal(flat.modelsRouteKey, "opencode-go"); // default
+  assert.equal(flat.syncWithModel, true);
 
   const nested = opencodeProvider.config({
     apiKey: "flat",
@@ -209,18 +208,4 @@ test("adapter contract: ctx.config is a function returning the provider slice", 
     "message must not contain 'undefined' (flat-read bug): " + unconfigured.error.message,
   );
   assert.ok(String(unconfigured.error.message).includes("OPENCODE_API_KEY"));
-});
-
-test("model-sync disabled branch honors the function-shaped config", async () => {
-  // syncModelsOnce(ctx) reads config through ctx.config(); with a function
-  // config returning modelsSyncEnabled: false it must answer "disabled"
-  // instead of reading the function object's undefined property.
-  const result = await opencodeProvider.syncModels({
-    config: () => ({ modelsSyncEnabled: false }),
-    settingsService: {},
-    resolveApiKey: () => "",
-    logger: { warn: () => {} },
-  });
-  assert.equal(result.ok, false);
-  assert.equal(result.error.code, "disabled");
 });

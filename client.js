@@ -7,9 +7,6 @@
  *
  *   GET  /api/quota-badges/status       cached snapshot
  *   POST /api/quota-badges/refresh      force one upstream fetch, then answer
- *   POST /api/quota-badges/sync-models  probe the live model listing, merge it
- *                                         with the route catalog, and write it
- *                                         into the llm-pi-ai settings namespace
  *
  * Clicking the badge toggles a detail popover: per-window percent bars with
  * reset countdowns, renewal/update stamps, an explicit refresh button, and —
@@ -28,7 +25,6 @@ window.__ModuleLoader__.load({
     /** Same-origin routes; keep in sync with cordis.patch.yml config defaults. */
     const STATUS_PATH = "/api/quota-badges/status";
     const REFRESH_PATH = "/api/quota-badges/refresh";
-    const SYNC_MODELS_PATH = "/api/quota-badges/sync-models";
     /** Client-side refetch period for the cached JSON; upstream pacing is the server's job. */
     const POLL_MS = 60_000;
     /** Detail popover width in px; positioning clamps against it. */
@@ -83,23 +79,10 @@ window.__ModuleLoader__.load({
       cardSaved: "已保存，正在生效",
       cardReadOnly: "当前部署的设置文档不可写（仅内存模式）",
       cardMemoryMode: "连接处于内存模式，设置不会持久化",
-      modelsTitle: "模型列表同步",
-      modelsDesc: "拉取 OpenCode 端点实时的模型清单，与已安装目录合并后写入 dsh 的 opencode-go 路由；新增模型立即出现在选择器中，无需重启。",
-      modelsBtn: "同步模型列表",
-      modelsSyncing: "同步中…",
-      modelsDone: "已同步 {total} 个模型（新增 {added}，移除 {removed}）",
-      modelsFail: "同步失败",
-      fieldVision: "强制视觉模型（逗号分隔 id）",
-      fieldVisionPlaceholder: "如 deepseek-v4-flash-vision-exp",
-      fieldVisionHint: "填写的模型将强制支持图像输入，忽略自动判定",
-      fieldTextOnly: "强制纯文本模型（逗号分隔 id）",
-      fieldTextOnlyPlaceholder: "如 某模型id",
-      fieldTextOnlyHint: "填写的模型将强制去掉图像输入，忽略自动判定",
       providerOpenCode: "OpenCode（Zen Go）",
       providerMiniMax: "MiniMax",
       secGeneral: "通用设置",
       secProviders: "厂商接入",
-      secModels: "模型能力",
       fieldMiniMaxRegion: "区域",
       fieldMiniMaxRegionHint: "cn（api.minimaxi.com）/ global（api.minimax.io）",
       regionCn: "中国（cn）",
@@ -168,23 +151,10 @@ window.__ModuleLoader__.load({
       cardSaved: "Saved and applying",
       cardReadOnly: "The settings document is read-only on this deployment",
       cardMemoryMode: "Connection is in memory mode; settings will not persist",
-      modelsTitle: "Model list sync",
-      modelsDesc: "Fetches the OpenCode endpoint's live model listing, merges it with the installed catalog, and writes it to the dsh opencode-go route; new models appear in the selector immediately.",
-      modelsBtn: "Sync model list",
-      modelsSyncing: "Syncing…",
-      modelsDone: "{total} models synced ({added} added, {removed} removed)",
-      modelsFail: "Sync failed",
-      fieldVision: "Force-vision models (comma-separated ids)",
-      fieldVisionPlaceholder: "e.g. deepseek-v4-flash-vision-exp",
-      fieldVisionHint: "These models are forced image-capable, overriding auto-detection",
-      fieldTextOnly: "Force text-only models (comma-separated ids)",
-      fieldTextOnlyPlaceholder: "e.g. some-model",
-      fieldTextOnlyHint: "These models get image input stripped, overriding auto-detection",
       providerOpenCode: "OpenCode (Zen Go)",
       providerMiniMax: "MiniMax",
       secGeneral: "General",
       secProviders: "Providers",
-      secModels: "Model behavior",
       fieldMiniMaxRegion: "Region",
       fieldMiniMaxRegionHint: "cn (api.minimaxi.com) / global (api.minimax.io)",
       regionCn: "China (cn)",
@@ -1226,11 +1196,9 @@ window.__ModuleLoader__.load({
       const value = snap.value ?? {};
       const writable = snap.writable === true;
 
-      const [open, setOpen] = useState(false);
+      const [open, setOpen] = useState(props && props.view === "page");
       const [intervalDraft, setIntervalDraft] = useState("");
       const [timeoutDraft, setTimeoutDraft] = useState("");
-      const [visionDraft, setVisionDraft] = useState("");
-      const [textOnlyDraft, setTextOnlyDraft] = useState("");
       // Provider-editable field drafts, keyed `${providerId}::${fieldKey}`.
       const [fieldDrafts, setFieldDrafts] = useState({});
       const [dirty, setDirty] = useState(false);
@@ -1269,8 +1237,6 @@ window.__ModuleLoader__.load({
         setFieldDrafts(next);
         setIntervalDraft(value.intervalSec !== undefined ? String(value.intervalSec) : "60");
         setTimeoutDraft(value.timeoutSec !== undefined ? String(value.timeoutSec) : "10");
-        setVisionDraft(Array.isArray(value.modelsVision) ? value.modelsVision.join(", ") : "");
-        setTextOnlyDraft(Array.isArray(value.modelsTextOnly) ? value.modelsTextOnly.join(", ") : "");
       }, [snap.status, snap.revision, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
       // Close the add-provider menu on any pointer press outside of it.
@@ -1291,15 +1257,6 @@ window.__ModuleLoader__.load({
           if (nextInterval !== value.intervalSec) await props.quotaSet("intervalSec", nextInterval);
           const nextTimeout = Math.max(1, Number(timeoutDraft) || 10);
           if (nextTimeout !== value.timeoutSec) await props.quotaSet("timeoutSec", nextTimeout);
-          const toList = (text) => text.split(",").map((s) => s.trim()).filter(Boolean);
-          const nextVision = toList(visionDraft);
-          if (JSON.stringify(nextVision) !== JSON.stringify(value.modelsVision ?? [])) {
-            await props.quotaSet("modelsVision", nextVision);
-          }
-          const nextTextOnly = toList(textOnlyDraft);
-          if (JSON.stringify(nextTextOnly) !== JSON.stringify(value.modelsTextOnly ?? [])) {
-            await props.quotaSet("modelsTextOnly", nextTextOnly);
-          }
           // Provider fields: root-scope fields write their own top-level key;
           // provider-scope fields merge into a single `providers` write.
           const nextProviders = { ...(value.providers ?? {}) };
@@ -1329,7 +1286,7 @@ window.__ModuleLoader__.load({
         } finally {
           setSaving(false);
         }
-      }, [intervalDraft, timeoutDraft, visionDraft, textOnlyDraft, fieldDrafts, value]); // eslint-disable-line react-hooks/exhaustive-deps
+      }, [intervalDraft, timeoutDraft, fieldDrafts, value]); // eslint-disable-line react-hooks/exhaustive-deps
 
       // Providers pinned as blocks. Unset storage shows every registered
       // provider (the pre-picker behavior); "Remove" clears the saved config
@@ -1397,6 +1354,10 @@ window.__ModuleLoader__.load({
           setSaving(false);
         }
       };
+
+      if (props && props.view === "summary") {
+        return t("cardDesc");
+      }
 
       return jsx("li", {
         style: {
@@ -1673,51 +1634,6 @@ window.__ModuleLoader__.load({
                         ),
                       ],
                     }),
-                    jsx("div", { className: "ocq-divider" }),
-                    jsxs("div", {
-                      className: "ocq-section",
-                      children: [
-                        jsx("div", { className: "ocq-section-title", children: t("secModels") }),
-                        jsx("label", {
-                          className: "ocq-field",
-                          children: [
-                            jsx("span", { className: "ocq-field-label", children: t("fieldVision") }),
-                            jsx("input", {
-                              type: "text",
-                              className: "ocq-input",
-                              value: visionDraft,
-                              disabled: !writable || saving,
-                              placeholder: t("fieldVisionPlaceholder"),
-                              autoComplete: "off",
-                              onChange: (e) => {
-                                setVisionDraft(e.target.value);
-                                markDirty();
-                              },
-                            }),
-                            jsx("span", { className: "ocq-field-hint", children: t("fieldVisionHint") }),
-                          ],
-                        }),
-                        jsx("label", {
-                          className: "ocq-field",
-                          children: [
-                            jsx("span", { className: "ocq-field-label", children: t("fieldTextOnly") }),
-                            jsx("input", {
-                              type: "text",
-                              className: "ocq-input",
-                              value: textOnlyDraft,
-                              disabled: !writable || saving,
-                              placeholder: t("fieldTextOnlyPlaceholder"),
-                              autoComplete: "off",
-                              onChange: (e) => {
-                                setTextOnlyDraft(e.target.value);
-                                markDirty();
-                              },
-                            }),
-                            jsx("span", { className: "ocq-field-hint", children: t("fieldTextOnlyHint") }),
-                          ],
-                        }),
-                      ],
-                    }),
                     statusLine !== "" ? jsx("div", { className: "ocq-card-status", children: statusLine }) : null,
                     error !== null ? jsx("div", { className: "ocq-pop-error", children: error }) : null,
                     jsxs("div", {
@@ -1742,7 +1658,7 @@ window.__ModuleLoader__.load({
 
     // ── registration ──────────────────────────────────────────────────────────
 
-    exports.inject = ["locale", "slots", "settingsScope", "modelDirectories"];
+    exports.inject = ["locale", "slots", "modelDirectories"];
     exports.apply = function apply(ctx) {
       ensureStyles();
       ctx.locale.register(NS, { zh, en });
@@ -1751,9 +1667,15 @@ window.__ModuleLoader__.load({
       // slot entry below.
       // The bound scope doubles as the badge's reactive settings source;
       // undefined keeps the always-visible fallback when binding is impossible.
+      const configForms = ctx.get ? ctx.get("configForms") : ctx.configForms;
+      const settingsScope = ctx.get ? ctx.get("settingsScope") : ctx.settingsScope;
       let badgeSettings;
       try {
-        badgeSettings = ctx.settingsScope.bind({ namespace: NS });
+        if (configForms?.get) {
+          badgeSettings = configForms.get(NS);
+        } else if (settingsScope?.bind) {
+          badgeSettings = settingsScope.bind({ namespace: NS });
+        }
       } catch {
         badgeSettings = undefined;
       }
@@ -1784,26 +1706,54 @@ window.__ModuleLoader__.load({
 
       // Settings card on the Plugins page: bind this plugin's namespace so the
       // API key and poll tuning are editable in the GUI, applied live.
-      const quotaSettings = ctx.settingsScope.bind({ namespace: NS });
+      const quotaSettings = badgeSettings;
+      const injectSettings = () => ({
+        hooks: { quotaSettings },
+        quotaSet: (field, value) => quotaSettings?.set?.(field, value),
+      });
+
+      function safeSlotRegister(ctx, options, component) {
+        try {
+          return ctx.slots.register(options, component);
+        } catch (error) {
+          console.warn(`[quota-badges] slot "${options.name}" registration skipped:`, error);
+          return undefined;
+        }
+      }
+
+      // 1. DSH 0.1.6+ Plugin Manager: bundle-level configuration
+      ctx.slots.inject("plugins.bundle.config", function* () {
+        const registration = safeSlotRegister(ctx, {
+          name: "plugins.bundle.config",
+          key: "dsh-plugin-quota-badges",
+          locale: NS,
+          inject: injectSettings,
+        }, QuotaSettingsCard);
+        if (registration !== undefined) yield registration;
+      });
+
+      // 2. DSH 0.1.6+ Plugin Manager: row-level configuration
+      ctx.slots.inject("plugins.row.config", function* () {
+        const registration = safeSlotRegister(ctx, {
+          name: "plugins.row.config",
+          key: "dsh-plugin-quota-badges#quota-badges",
+          locale: NS,
+          inject: injectSettings,
+        }, QuotaSettingsCard);
+        if (registration !== undefined) yield registration;
+      });
+
+      // 3. Legacy DSH (< 0.1.6) Settings modal slot
       ctx.slots.inject("settings.plugin.item", function* () {
-        yield ctx.slots.register(
-          {
-            name: "settings.plugin.item",
-            // key must equal the registered settings namespace: the plugins
-            // page pairs cards to namespaces by this exact string.
-            key: "quota-badges",
-            id: "quota-badges",
-            order: 20,
-            locale: NS,
-            inject: () => ({
-              hooks: { quotaSettings },
-              quotaSet: (field, value) => quotaSettings.set(field, value),
-              quotaSyncModels: () =>
-                fetch(SYNC_MODELS_PATH, { method: "POST" }).then((response) => response.json()),
-            }),
-          },
-          QuotaSettingsCard,
-        );
+        const registration = safeSlotRegister(ctx, {
+          name: "settings.plugin.item",
+          key: "quota-badges",
+          id: "quota-badges",
+          order: 20,
+          locale: NS,
+          inject: injectSettings,
+        }, QuotaSettingsCard);
+        if (registration !== undefined) yield registration;
       });
     };
 

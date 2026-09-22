@@ -24,43 +24,11 @@ export interface QuotaBadgesConfig {
   statusPath: string;
   /** Same-origin route forcing one refresh (POST). */
   refreshPath: string;
-  /** Master switch for the model-list fix (discovery enrichment + sync route). */
-  modelsSyncEnabled: boolean;
-  /** The llm-pi-ai provider route whose model list this plugin keeps current. */
-  modelsRouteKey: string;
-  /** Endpoint probed for the live model listing. */
-  modelsBaseURL: string;
-  /** Same-origin route forcing one model-list sync (POST). */
-  syncModelsPath: string;
-  /** Wire protocol written onto the route so catalog-unknown models are serviceable. */
-  modelsRouteApi: string;
-  /** Fill missing capacities/modalities for new models from the models.dev registry. */
-  modelsEnrichFromRegistry: boolean;
-  /** Model ids to force vision-capable, overriding any auto-detection. */
-  modelsVision: string[];
-  /** Model ids to force text-only (image stripped), overriding auto-detection. */
-  modelsTextOnly: string[];
   /** Provider ids pinned as blocks in the settings card (the rest wait in the picker). */
   visibleProviders: string[];
   /** Per-provider configuration overriding the flat compatibility keys. */
   providers?: ProviderConfigBlock;
 }
-
-/** One merged entry of a synced llm-pi-ai models profile list. */
-export interface SyncedModelEntry {
-  id: string;
-  name?: string;
-  contextWindow?: number;
-  maxTokens?: number;
-}
-
-/**
- * Probe an OpenAI-compatible `GET {baseURL}/models` listing and extract its
- * unique model ids in endpoint order.
- * @throws an error whose `code` classifies the failure
- *   (invalid-credentials | api-error | parse-failed | network-error).
- */
-export declare function fetchLiveModelList(baseURL: string, apiKey: string, signal?: AbortSignal): Promise<string[]>;
 
 export declare const Config: unknown;
 

@@ -6,7 +6,6 @@
       inject:
         - webServer
         - settings
-        - llm
       config:
         # Explicit OpenCode API key; empty falls back to apiKeyEnvVar.
         apiKey: ''
@@ -17,21 +16,6 @@
         refreshPath: '/api/quota-badges/refresh'
         # Badge only while the selected model's provider is opencode-family.
         syncWithModel: true
-        # Model-list sync: probe {modelsBaseURL}/models live, merge it with the
-        # route's installed catalog, and write the union into the llm-pi-ai
-        # settings namespace so the route below serves every advertised model.
-        modelsSyncEnabled: true
-        modelsRouteKey: 'opencode-go'
-        modelsBaseURL: 'https://opencode.ai/zen/go/v1'
-        syncModelsPath: '/api/quota-badges/sync-models'
-        # Wire protocol written onto the route so catalog-unknown models are
-        # serviceable (dsh refuses a models list whose new ids have no api).
-        modelsRouteApi: 'openai-completions'
-        modelsEnrichFromRegistry: true
-        # Explicit model-id overrides above auto-detection: force image input
-        # (modelsVision) or strip it (modelsTextOnly). Empty by default.
-        modelsVision: []
-        modelsTextOnly: []
         # Provider ids pinned as blocks in the settings card; the rest stay
         # behind the card's "add provider" picker (UI curation only).
         visibleProviders: ['opencode', 'minimax']

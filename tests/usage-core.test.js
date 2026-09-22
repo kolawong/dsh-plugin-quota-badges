@@ -31,6 +31,42 @@ test("fraction percents scale to 0..100 only on direct fields", () => {
   assert.equal(computed.percent, 30);
 });
 
+test("integer percents pass through — exactly 1 stays 1% used", () => {
+  // The live endpoint sends integer percents; the old `<= 1 → ×100` heuristic
+  // read exactly 1 as the fraction 1.0 and showed a 1%-used window as empty.
+  assert.equal(parseWindow({ percent: 1, resetInSec: 60 }, NOW).percent, 1);
+  assert.equal(parseWindow({ percent: 0, resetInSec: 60 }, NOW).percent, 0);
+  assert.equal(parseWindow({ percent: 4, resetInSec: 60 }, NOW).percent, 4);
+  // A re-derived used/limit value is never rescaled either.
+  assert.equal(parseWindow({ used: 1, limit: 200, resetInSec: 60 }, NOW).percent, 0.5);
+});
+
+test("live OpenCode Go payload: monthly percent 1 no longer reads as fully used", () => {
+  const snapshot = parseUsageText(
+    JSON.stringify({
+      usage: {
+        rolling: { status: "ok", percent: 4, resetsAt: "2026-09-02T07:51:36.581Z" },
+        weekly: { status: "ok", percent: 17, resetsAt: "2026-09-07T00:00:00.581Z" },
+        monthly: { status: "ok", percent: 1, resetsAt: "2026-10-01T05:39:29.581Z" },
+      },
+    }),
+    NOW,
+  );
+  assert.equal(snapshot.rolling.percent, 4);
+  assert.equal(snapshot.weekly.percent, 17);
+  assert.equal(snapshot.monthly.percent, 1);
+});
+
+test("direct percent above 100 is a raw count: re-derive or drop the window", () => {
+  // With a usable used/limit pair the percent is recomputed from it...
+  const rederived = parseWindow({ usage: 4250, used: 4250, limit: 5000, resetInSec: 60 }, NOW);
+  assert.equal(rederived.percent, 85);
+  // ...otherwise the window is dropped instead of clamping to "0% remaining".
+  assert.equal(parseWindow({ usage: 4250, resetInSec: 60 }, NOW), null);
+  // A legitimate fully-used window still reads as 100.
+  assert.equal(parseWindow({ percent: 100, resetInSec: 60 }, NOW).percent, 100);
+});
+
 test("used/limit fallback computes percent without a direct field", () => {
   const window = parseWindow({ usedTokens: 250, tokenLimit: 1000, resetSeconds: 5 }, NOW);
   assert.equal(window.percent, 25);

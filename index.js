@@ -7,16 +7,17 @@
  * 1. GET  <statusPath>     — last known snapshot of the active provider
  *                            (never triggers upstream traffic).
  * 2. POST <refreshPath>    — force one upstream fetch, then serve the result.
- * 3. POST <syncModelsPath> — OpenCode-only: probe the live model listing, merge
- *                            it with the installed catalog, and write it into
- *                            the llm-pi-ai settings namespace.
  *
  * Each provider is an adapter (see providers/opencode.js) exposing
- *   { id, displayName, config(merged), fetchUsage(ctx), syncModels?(ctx), install?(ctx) }
+ *   { id, displayName, config(merged), fetchUsage(ctx) }
  * State is tracked per provider id; the routes serve the "active" provider —
  * today that is always the first registered one (opencode), which keeps the
  * wire shape and the existing client compatible while the client-side
  * multi-provider UI lands in the companion step.
+ *
+ * The OpenCode model-list sync (live listing merge, models.dev enrichment,
+ * discovery wrap, vision/text-only overrides) moved out to dsh-plugin-toolkit's
+ * `modelCapability` optimization.
  *
  * @license MIT
  */
@@ -28,7 +29,7 @@ import { kimiProvider } from "./providers/kimi.js";
 import { deepseekProvider } from "./providers/deepseek.js";
 
 export const name = "quota-badges";
-export const inject = ["webServer", "settings", "llm"];
+export const inject = ["webServer", "settings"];
 
 /**
  * Plugin configuration. Top-level flat keys remain the OpenCode compatibility
@@ -50,22 +51,6 @@ export const Config = z.object({
   refreshPath: z.string().default("/api/quota-badges/refresh"),
   /** Show the badge only while the session's selected model comes from an opencode provider. */
   syncWithModel: z.boolean().default(true),
-  /** Master switch for the model-list fix (discovery enrichment + sync route). */
-  modelsSyncEnabled: z.boolean().default(true),
-  /** The llm-pi-ai provider route whose model list this plugin keeps current. */
-  modelsRouteKey: z.string().default("opencode-go"),
-  /** Endpoint probed for the live model listing. */
-  modelsBaseURL: z.string().default("https://opencode.ai/zen/go/v1"),
-  /** Same-origin route forcing one model-list sync (POST). */
-  syncModelsPath: z.string().default("/api/quota-badges/sync-models"),
-  /** Wire protocol written onto the route so catalog-unknown models are serviceable. */
-  modelsRouteApi: z.string().default("openai-completions"),
-  /** Fill missing capacities/modalities for new models from the models.dev registry. */
-  modelsEnrichFromRegistry: z.boolean().default(true),
-  /** Model ids to force vision-capable, overriding any auto-detection. */
-  modelsVision: z.array(z.string()).default([]),
-  /** Model ids to force text-only (image stripped), overriding auto-detection. */
-  modelsTextOnly: z.array(z.string()).default([]),
   /**
    * Provider ids pinned as editable blocks in the settings card; the rest wait
    * behind the card's "add provider" picker. Purely a UI-curation key - the
@@ -92,14 +77,6 @@ let pluginConfig = {
   statusPath: "/api/quota-badges/status",
   refreshPath: "/api/quota-badges/refresh",
   syncWithModel: true,
-  modelsSyncEnabled: true,
-  modelsRouteKey: "opencode-go",
-  modelsBaseURL: "https://opencode.ai/zen/go/v1",
-  syncModelsPath: "/api/quota-badges/sync-models",
-  modelsRouteApi: "openai-completions",
-  modelsEnrichFromRegistry: true,
-  modelsVision: [],
-  modelsTextOnly: [],
   visibleProviders: ["opencode", "minimax"],
   providers: {},
 };
@@ -110,12 +87,6 @@ let pluginConfig = {
  * currentConfig() so Web-settings edits apply without a restart.
  */
 let settingsHandle = null;
-
-/** The settings provider itself, kept for cross-namespace writes from routes. */
-let settingsService = null;
-
-/** The llm runtime, captured through ctx.inject() rather than the property proxy. */
-let llmRuntime = null;
 
 /** Merge the composition layer with any newer user-layer settings section. */
 function currentConfig() {
@@ -168,7 +139,7 @@ function providerState(providerId) {
   return entry;
 }
 
-/** Backing store for ctx.effect captured during provider fetch/install. */
+/** Backing store for ctx.effect captured during provider fetch. */
 let ctxEffect = (label, fn) => fn();
 
 /**
@@ -185,8 +156,6 @@ async function refreshProvider(provider, logger) {
         logger,
         config: () => provider.config(currentConfig()),
         resolveApiKey,
-        settingsService,
-        llmRuntime,
         effect: (fn, label) => ctxEffect(fn, label),
       });
       if (snapshot !== null) {
@@ -248,14 +217,14 @@ function sendJson(res, body, status = 200) {
   res.end(JSON.stringify(body));
 }
 
-/** Build the per-provider context handed to adapter methods. */
+/**
+ * Build the per-provider context handed to adapter methods.
+ */
 function providerCtx(provider, logger) {
   return {
     logger,
     config: () => provider.config(currentConfig()),
     resolveApiKey,
-    settingsService,
-    llmRuntime,
     effect: (fn, label) => ctxEffect(fn, label),
   };
 }
@@ -263,8 +232,7 @@ function providerCtx(provider, logger) {
 /**
  * Plugin activation: store config, register the settings namespace (live —
  * Web-settings edits re-key and reschedule without a restart), start the
- * poller, mount the three HTTP routes on the shared web server, and install
- * each provider's startup behavior.
+ * poller, and mount the two HTTP routes on the shared web server.
  */
 export function apply(ctx, config) {
   pluginConfig = { ...pluginConfig, ...(config || {}) };
@@ -278,11 +246,9 @@ export function apply(ctx, config) {
   // Register the settings namespace over the exported Config schema, seeded
   // with this composition's values; keep the live handle so currentConfig()
   // serves user-layer edits. A watch on the interval field reschedules the
-  // poller in place. The provider itself is kept for the model-sync write.
+  // poller in place.
   let reschedule = () => {};
-  ctx.inject(["settings", "llm"], (sctx) => {
-    settingsService = sctx.settings;
-    llmRuntime = sctx.llm;
+  ctx.inject(["settings"], (sctx) => {
     try {
       settingsHandle = sctx.settings.register("quota-badges", Config, { base: pluginConfig });
       settingsHandle.watch?.((next, prev) => {
@@ -324,14 +290,6 @@ export function apply(ctx, config) {
     };
   }, "quota-badges: poller");
 
-  // Install each provider's startup behavior (discovery enrichment, settings
-  // healing) against the assembly context.
-  for (const provider of providers.values()) {
-    if (typeof provider.install === "function") {
-      provider.install(providerCtx(provider, logger));
-    }
-  }
-
   // GET status: serve whatever the active provider already knows. Route paths
   // are read once at registration; changing them is a restart-level change.
   ctx.effect(
@@ -366,27 +324,5 @@ export function apply(ctx, config) {
         },
       }),
     "quota-badges: POST refresh route",
-  );
-
-  // POST sync-models: OpenCode-only model-list sync.
-  ctx.effect(
-    () =>
-      ctx.webServer.register({
-        kind: "exact",
-        path: pluginConfig.syncModelsPath,
-        handler: async (req, res) => {
-          if (req.method !== "POST") {
-            sendJson(res, { ok: false, error: "Method not allowed" }, 405);
-            return;
-          }
-          const provider = providers.get("opencode");
-          if (!provider || typeof provider.syncModels !== "function") {
-            sendJson(res, { ok: false, error: { code: "disabled", message: "model sync is unavailable for the active provider" } });
-            return;
-          }
-          sendJson(res, await provider.syncModels(providerCtx(provider, logger)));
-        },
-      }),
-    "quota-badges: POST sync-models route",
   );
 }

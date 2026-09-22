@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-quota-badges",
-  "version": "0.11.0",
+  "version": "1.0.0",
   "description": "DeepSeek Harness bundle: multi-vendor subscription quota badge (OpenCode Zen Go, MiniMax, Kimi Code, DeepSeek) — queries each vendor's usage windows/balance and renders badges next to the composer model selector.",
   "type": "module",
   "main": "index.js",
@@ -55,21 +55,21 @@
   "license": "MIT",
   "files": [
     "index.js",
-    "usage-core.js",
     "client.js",
+    "usage-core.js",
     "index.d.ts",
     "cordis.patch.yml",
-    "providers/",
+    "providers",
     "README.md",
-    "README_CN.md",
-    "scripts/",
-    "tests/"
+    "README_CN.md"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0",
     "@deepseek-ai/schemastery": ">=3.0.0"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "build": "node -c index.js && node -c client.js",
+    "prepare": "node -c index.js && node -c client.js"
   }
 }

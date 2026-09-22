@@ -67,6 +67,7 @@ export const Config = z.object({
    */
   providers: z.dict(z.dict(z.any())).default({}),
 });
+Config.meta.volatile = true;
 
 /** Active configuration until apply() stores the validated values. */
 let pluginConfig = {
@@ -248,16 +249,28 @@ export function apply(ctx, config) {
   // serves user-layer edits. A watch on the interval field reschedules the
   // poller in place.
   let reschedule = () => {};
+  // In DSH 0.1.7, Config.meta.volatile = true drives the settings form natively.
+  // We keep optional register support for backwards compatibility and test harnesses.
   ctx.inject(["settings"], (sctx) => {
     try {
-      settingsHandle = sctx.settings.register("quota-badges", Config, { base: pluginConfig });
-      settingsHandle.watch?.((next, prev) => {
-        if ((next?.intervalSec ?? 0) !== (prev?.intervalSec ?? 0)) reschedule();
-        void refreshAllProviders(logger);
+      if (typeof sctx.settings?.register === "function") {
+        settingsHandle = sctx.settings.register("quota-badges", Config, { base: pluginConfig });
+        settingsHandle.watch?.((next, prev) => {
+          if ((next?.intervalSec ?? 0) !== (prev?.intervalSec ?? 0)) reschedule();
+          void refreshAllProviders(logger);
+        });
+      }
+      ctx.on("settings/document-updated", (ns) => {
+        if (ns === "quota-badges") {
+          const entries = ctx.root?.configEditor?.entries?.() || [];
+          const entry = entries.find((r) => r.options?.id === "quota-badges");
+          if (entry?.options?.config) {
+            pluginConfig = { ...pluginConfig, ...entry.options.config };
+            reschedule();
+            void refreshAllProviders(logger);
+          }
+        }
       });
-      // Boot race repair: the apply-time kick may have run before this handle
-      // existed and read only the composition layer. If that left an
-      // unconfigured error while the live section carries a key, retry now.
       const hadUnconfigured = [...providers.values()].some((p) => {
         const e = providerState(p.id);
         return e.data === null && e.error?.code === "unconfigured";
@@ -266,7 +279,7 @@ export function apply(ctx, config) {
         void refreshAllProviders(logger);
       }
     } catch (error) {
-      logger?.warn?.("[quota-badges] settings registration:", error);
+      logger?.warn?.("[quota-badges] settings initialization:", error);
     }
   });
 

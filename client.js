@@ -20,7 +20,19 @@ window.__ModuleLoader__.load({
     const React = require("react");
     const { useState, useEffect, useLayoutEffect, useCallback, useRef } = React;
     const { jsx, jsxs } = require("react/jsx-runtime");
-    const { IconChevronDownOutline14, IconRefreshOutline14 } = require("@deepseek-ai/dsh-client-ui-primitives");
+    const primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+    if (primitives && typeof primitives === "object") {
+      for (const key of Object.keys(primitives)) {
+        if (key.startsWith("Icon") && key.endsWith("Regular")) {
+          const base = key.slice(0, -7);
+          for (const suffix of ["12", "14", "16", "18", "20", "24", ""]) {
+            if (!primitives[base + suffix]) primitives[base + suffix] = primitives[key];
+          }
+        }
+      }
+    }
+    const IconChevronDownOutline14 = primitives.IconChevronDownOutlineRegular || primitives.IconChevronDownOutline14 || (() => null);
+    const IconRefreshOutline14 = primitives.IconRefreshOutlineRegular || primitives.IconRefreshOutline14 || (() => null);
 
     /** Same-origin routes; keep in sync with cordis.patch.yml config defaults. */
     const STATUS_PATH = "/api/quota-badges/status";
@@ -1658,7 +1670,7 @@ window.__ModuleLoader__.load({
 
     // ── registration ──────────────────────────────────────────────────────────
 
-    exports.inject = ["locale", "slots", "modelDirectories"];
+    exports.inject = ["locale", "slots", "configForms", "modelDirectories"];
     exports.apply = function apply(ctx) {
       ensureStyles();
       ctx.locale.register(NS, { zh, en });

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-plugin-quota-badges",
+    "description": "多模型服务商订阅额度监控（OpenCode Zen Go、MiniMax、Kimi Code、DeepSeek），在对话输入框模型选择器旁实时展示用量周期与余额。"
+  }
+}

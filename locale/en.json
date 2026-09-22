@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-plugin-quota-badges",
+    "description": "DeepSeek Harness bundle: multi-vendor subscription quota badge (OpenCode Zen Go, MiniMax, Kimi Code, DeepSeek) — queries each vendor's usage windows/balance and renders badges next to the composer model selector."
+  }
+}

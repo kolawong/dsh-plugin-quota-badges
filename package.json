@@ -71,7 +71,6 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "build": "node -c index.js && node -c client.js",
-    "prepare": "node -c index.js && node -c client.js"
+    "build": "node -c index.js && node -c client.js"
   }
 }

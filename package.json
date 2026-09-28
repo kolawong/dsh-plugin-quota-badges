@@ -63,7 +63,8 @@
     "providers",
     "README.md",
     "README_CN.md",
-    "locale/*.json"
+    "locale/*.json",
+    "icon.svg"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0",
@@ -72,5 +73,6 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "build": "node -c index.js && node -c client.js"
-  }
+  },
+  "icon": "./icon.svg"
 }

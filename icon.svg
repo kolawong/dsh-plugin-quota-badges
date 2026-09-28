@@ -1,0 +1,20 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 24.5C8.2 21.5 8 16.5 11 12.5C14.2 8 21.8 8 25 12.5C28 16.5 27.8 21.5 26 24.5" stroke="url(#q_arc)" stroke-width="3" stroke-linecap="round" />
+  <circle cx="10" cy="24.5" r="1.8" fill="#45E7A4" />
+  <circle cx="18" cy="8.8" r="1.8" fill="#60A5FA" />
+  <circle cx="26" cy="24.5" r="1.8" fill="#F59E0B" />
+  <circle cx="18" cy="21.5" r="3" fill="url(#q_hub)" />
+  <path d="M18 21.5L23 15" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" />
+  <circle cx="18" cy="21.5" r="1.2" fill="#FFFFFF" />
+  <defs>
+    <linearGradient id="q_arc" x1="9" y1="9" x2="27" y2="25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#45E7A4" />
+      <stop offset="0.5" stop-color="#60A5FA" />
+      <stop offset="1" stop-color="#F59E0B" />
+    </linearGradient>
+    <linearGradient id="q_hub" x1="15" y1="18.5" x2="21" y2="24.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#69B9FF" />
+      <stop offset="1" stop-color="#1E3BB8" />
+    </linearGradient>
+  </defs>
+</svg>

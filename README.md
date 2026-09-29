@@ -4,7 +4,7 @@ English | [简体中文](README_CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![DeepSeek Harness](https://img.shields.io/badge/DSH-Plugin-blueviolet.svg)](https://github.com/deepseek-ai/deepseek-harness)
-[![Multi-Vendor Quota](https://img.shields.io/badge/Vendors-OpenCode%20|%20MiniMax%20|%20Kimi%20|%20DeepSeek-brightgreen.svg)]()
+[![Multi-Vendor Quota](https://img.shields.io/badge/Vendors-OpenCode%20|%20MiniMax%20|%20Kimi%20|%20DeepSeek%20|%20ClinePass-brightgreen.svg)]()
 [![Platform: Web](https://img.shields.io/badge/Platform-Web-orange.svg)]()
 
 A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin providing real-time multi-vendor subscription quota and balance monitoring. Displays compact quota bars directly in the composer bar next to the model selector, with a full Web settings interface.
@@ -24,6 +24,7 @@ A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plu
   - **MiniMax**: Rolling interval usage & Weekly membership limit.
   - **Kimi Code**: 5-Hour limit (`limits[0]`) & Weekly quota pool.
   - **DeepSeek**: Real-time account balance tracking (USD / CNY) with availability indicators.
+  - **ClinePass**: Cline subscription plan usage — 5-hour rate window, weekly pool, and monthly plan quota.
 - **📊 Real-time Composer Badge**
   - Mounted on the `conversation.input.right` slot, right beside the model selector.
   - Renders compact visual progress bars (`████░░░░ 78% · Wk ██ 20%`).
@@ -32,7 +33,7 @@ A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plu
     - 🟡 **Warning**: 10% – 30% quota remaining
     - 🔴 **Critical**: < 10% quota remaining
 - **🎯 Dynamic Active-Model Sync (Auto-Filter)**
-  - When enabled (default), the badge automatically appears when the active session model belongs to a configured vendor (e.g. OpenCode, MiniMax, Kimi, DeepSeek) and hides when switched to other providers.
+  - When enabled (default), the badge automatically appears when the active session model belongs to a configured vendor (e.g. OpenCode, MiniMax, Kimi, DeepSeek, ClinePass) and hides when switched to other providers.
 - **🔍 Rich Popover Details & Instant Refresh**
   - Click on the badge to expand a detailed popover displaying per-vendor progress bars, exact reset timestamps, subscription renewal dates, and an instant **"Refresh Now"** button.
 - **🛡️ Secure Server-Side Proxy (CORS Bypass & Key Safety)**
@@ -58,11 +59,13 @@ A native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plu
 │                    DSH Server Plugin Layer                  │
 │  - Background Poller (Configurable Interval, Default 60s)   │
 │  - Provider Adapters (OpenCode / MiniMax / Kimi / DeepSeek) │
+│    + ClinePass                                              │
 └──────────────────────────────▲──────────────────────────────┘
                                │ Upstream HTTPS
 ┌──────────────────────────────┴──────────────────────────────┐
 │                  Upstream AI Vendor APIs                    │
-│   - opencode.ai / api.minimax.chat / kimi.moonshot / deepseek│
+│   - opencode.ai / api.minimax.chat / api.minimax.io /       │
+│     api.kimi.com / api.deepseek.com / api.cline.bot         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -121,7 +124,7 @@ All configurations can be managed visually directly within the Web interface:
    - Request Timeout (seconds, default: `15s`)
    - Follow Selected Model toggle (`true`/`false`)
 2. **Provider Integration (`厂商接入`)**:
-   - Click `+ Add Provider` to configure API Keys for **OpenCode**, **MiniMax**, **Kimi Code**, or **DeepSeek**.
+   - Click `+ Add Provider` to configure API Keys for **OpenCode**, **MiniMax**, **Kimi Code**, **DeepSeek**, or **ClinePass**.
    - Custom API Base URLs (e.g. OpenCode Global vs. CN endpoint).
 
 ### Overriding via `cordis.patch.yml` (Optional)
@@ -134,15 +137,30 @@ You can also customize the plugin in `$DSH_HOME/profiles/web/cordis.patch.yml`:
       name: 'dsh-plugin-quota-badges'
       inject:
         - webServer
+        - settings
       config:
-        pollIntervalSeconds: 60
-        timeoutSeconds: 15
-        onlyWhenSelectedVendor: true
-        opencodeApiKey: 'your_opencode_key'
-        minimaxApiKey: 'your_minimax_token'
-        kimiApiKey: 'your_kimi_key'
-        deepseekApiKey: 'your_deepseek_key'
+        intervalSec: 60
+        timeoutSec: 10
+        syncWithModel: true
+        # Flat compatibility key for OpenCode (the legacy settings document).
+        apiKey: 'your_opencode_key'
+        # Per-provider blocks override the flat keys:
+        providers:
+          minimax:
+            apiKey: 'your_minimax_token'
+            region: 'cn'
+          kimi:
+            apiKey: 'your_kimi_key'
+          deepseek:
+            apiKey: 'your_deepseek_key'
+          cline:
+            apiKey: 'your_clinepass_key'
 ```
+
+An empty per-provider `apiKey` falls back to that provider's environment variable:
+`OPENCODE_API_KEY`, `MINIMAX_CN_API_KEY`, `KIMI_CODE_API_KEY`, `DEEPSEEK_API_KEY`
+(or `DEEPSEEK_KEY`), and `CLINE_API_KEY` (or `CLINEPASS_API_KEY`) for ClinePass.
+ClinePass keys are issued at [app.cline.bot](https://app.cline.bot).
 
 ---
 

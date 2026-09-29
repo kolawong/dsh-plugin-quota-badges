@@ -163,7 +163,7 @@ test("payload keeps the single-provider wire shape (rolling/weekly/monthly)", as
   assert.equal(body.ok, true);
   assert.equal(body.provider, "opencode");
   assert.equal(body.displayName, "OpenCode");
-  assert.deepEqual(body.providers, ["opencode", "minimax", "kimi", "deepseek"]);
+  assert.deepEqual(body.providers, ["opencode", "minimax", "kimi", "deepseek", "cline"]);
   assert.ok("data" in body && "error" in body && "fetchedAt" in body && "ageSec" in body);
 });
 

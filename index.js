@@ -27,6 +27,7 @@ import { opencodeProvider } from "./providers/opencode.js";
 import { minimaxProvider } from "./providers/minimax.js";
 import { kimiProvider } from "./providers/kimi.js";
 import { deepseekProvider } from "./providers/deepseek.js";
+import { clinepassProvider } from "./providers/clinepass.js";
 
 export const name = "quota-badges";
 export const inject = ["webServer", "settings"];
@@ -113,6 +114,7 @@ const providers = new Map([
   [minimaxProvider.id, minimaxProvider],
   [kimiProvider.id, kimiProvider],
   [deepseekProvider.id, deepseekProvider],
+  [clinepassProvider.id, clinepassProvider],
 ]);
 
 /** The provider served by the status/refresh routes (first registered today). */

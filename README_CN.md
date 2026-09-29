@@ -4,10 +4,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![DeepSeek Harness](https://img.shields.io/badge/DSH-Plugin-blueviolet.svg)](https://github.com/deepseek-ai/deepseek-harness)
-[![Multi-Vendor Quota](https://img.shields.io/badge/Vendors-OpenCode%20|%20MiniMax%20|%20Kimi%20|%20DeepSeek-brightgreen.svg)]()
+[![Multi-Vendor Quota](https://img.shields.io/badge/Vendors-OpenCode%20|%20MiniMax%20|%20Kimi%20|%20DeepSeek%20|%20ClinePass-brightgreen.svg)]()
 [![Platform: Web](https://img.shields.io/badge/Platform-Web-orange.svg)]()
 
-DeepSeek Harness 原生外挂插件：**多厂商订阅额度与余额徽章**。支持 **OpenCode（Zen Go）**、**MiniMax**、**Kimi Code** 与 **DeepSeek** 四家厂商，实时查询各厂商的限流额度窗口、订阅配额及账户余额，并在输入框模型选择器旁直观渲染微型额度徽章，配套完善的 Web 设置卡片。
+DeepSeek Harness 原生外挂插件：**多厂商订阅额度与余额徽章**。支持 **OpenCode（Zen Go）**、**MiniMax**、**Kimi Code**、**DeepSeek** 与 **ClinePass** 五家厂商，实时查询各厂商的限流额度窗口、订阅配额及账户余额，并在输入框模型选择器旁直观渲染微型额度徽章，配套完善的 Web 设置卡片。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -24,6 +24,7 @@ DeepSeek Harness 原生外挂插件：**多厂商订阅额度与余额徽章**�
   - **MiniMax**：滚动间隔限流 + 每周会员用量配额。
   - **Kimi Code**：5 小时限流窗口 (`limits[0]`) + 每周会员额度池。
   - **DeepSeek**：账户余额实时监控（USD / CNY 金额与可用性条）。
+  - **ClinePass**：Cline 订阅套餐用量——5 小时限流窗口、每周额度池与每月套餐配额。
 - **📊 原生输入栏额度徽章**
   - 挂载于 `conversation.input.right` 扩展槽，紧邻模型选择器；
   - 采用紧凑的文本块进度条（`████░░░░ 剩78% · 周 ██ 剩20%`）；
@@ -32,7 +33,7 @@ DeepSeek Harness 原生外挂插件：**多厂商订阅额度与余额徽章**�
     - 🟡 **警告状态**：剩余额度 10% ~ 30%
     - 🔴 **危险状态**：剩余额度 < 10%
 - **🎯 跟随当前选中模型动态显示（自动过滤）**
-  - 开启后（默认开启），仅当当前会话选中的模型属于已配置厂商（如 OpenCode、MiniMax、Kimi、DeepSeek 系）时徽章才显示，切换到其他供应商自动隐藏。
+  - 开启后（默认开启），仅当当前会话选中的模型属于已配置厂商（如 OpenCode、MiniMax、Kimi、DeepSeek、ClinePass 系）时徽章才显示，切换到其他供应商自动隐藏。
 - **🔍 详情弹窗与即时刷新**
   - 点击徽章可弹出详情面板，展示各厂商各窗口精确百分比进度条、重置倒计时、订阅续期时间与更新时间，并提供一键「立即刷新」按钮。
 - **🛡️ 服务端代理转发（免 CORS 与密钥安全）**
@@ -58,11 +59,13 @@ DeepSeek Harness 原生外挂插件：**多厂商订阅额度与余额徽章**�
 │                    DSH 服务端插件层                          │
 │  - 定时后台轮询 Worker (默认 60 秒可调)                       │
 │  - 厂商适配器 (OpenCode / MiniMax / Kimi / DeepSeek)         │
+│    + ClinePass                                               │
 └──────────────────────────────▲──────────────────────────────┘
                                │ 上游 HTTPS
 ┌──────────────────────────────┴──────────────────────────────┐
 │                    各 AI 厂商官方接口                        │
-│   - opencode.ai / api.minimax.chat / kimi.moonshot / deepseek│
+│   - opencode.ai / api.minimax.chat / api.minimax.io /       │
+│     api.kimi.com / api.deepseek.com / api.cline.bot         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -120,7 +123,7 @@ dsh plugin --profile web remove dsh-plugin-quota-badges
    - 请求超时（秒，默认 `15s`）
    - 跟随当前模型显示开关（默认开启）
 2. **厂商接入**：
-   - 点击「＋ 添加厂商」可按需接入 **OpenCode**、**MiniMax**、**Kimi Code** 或 **DeepSeek**；
+   - 点击「＋ 添加厂商」可按需接入 **OpenCode**、**MiniMax**、**Kimi Code**、**DeepSeek** 或 **ClinePass**；
    - 支持自定义 API 基础域名（如 OpenCode 全球节点与国内节点切换）；
    - 点击右上角「移除」可取消固定并安全清除对应厂商密钥。
 
@@ -134,15 +137,27 @@ dsh plugin --profile web remove dsh-plugin-quota-badges
       name: 'dsh-plugin-quota-badges'
       inject:
         - webServer
+        - settings
       config:
-        pollIntervalSeconds: 60
-        timeoutSeconds: 15
-        onlyWhenSelectedVendor: true
-        opencodeApiKey: 'your_opencode_key'
-        minimaxApiKey: 'your_minimax_token'
-        kimiApiKey: 'your_kimi_key'
-        deepseekApiKey: 'your_deepseek_key'
+        intervalSec: 60
+        timeoutSec: 10
+        syncWithModel: true
+        # OpenCode 的扁平兼容键（旧设置文档使用）
+        apiKey: 'your_opencode_key'
+        # 各厂商嵌套块（覆盖上面的扁平键）：
+        providers:
+          minimax:
+            apiKey: 'your_minimax_token'
+            region: 'cn'
+          kimi:
+            apiKey: 'your_kimi_key'
+          deepseek:
+            apiKey: 'your_deepseek_key'
+          cline:
+            apiKey: 'your_clinepass_key'
 ```
+
+各厂商 `apiKey` 留空时会回退读取对应环境变量：`OPENCODE_API_KEY`、`MINIMAX_CN_API_KEY`、`KIMI_CODE_API_KEY`、`DEEPSEEK_API_KEY`（或 `DEEPSEEK_KEY`），以及 ClinePass 的 `CLINE_API_KEY`（或 `CLINEPASS_API_KEY`）。ClinePass 密钥可在 [app.cline.bot](https://app.cline.bot) 生成。
 
 ---
 
